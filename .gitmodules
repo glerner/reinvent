@@ -1,0 +1,3 @@
+[submodule "tests/gl-phpunit-test-framework"]
+	path = tests/gl-phpunit-test-framework
+	url = https://github.com/glerner/phpunit-testing.git

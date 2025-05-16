@@ -1,0 +1,104 @@
+# Dependencies
+/vendor/
+/node_modules/
+/composer.lock
+/package-lock.json
+/npm-debug.log
+/build/
+/dist/
+
+# GL PHPUnit Testing Framework
+/tests/vendor/
+/tests/composer.lock
+/tests/composer.json
+/tests/wp-tests-config.php
+/tests/bootstrap/
+/tests/config/
+/tests/bin/
+/tests/gl-phpunit-test-framework/.git
+/tests/gl-phpunit-test-framework/.github
+/tests/gl-phpunit-test-framework/.gitignore
+/tests/gl-phpunit-test-framework/.DS_Store
+/tests/gl-phpunit-test-framework/.idea/
+/tests/gl-phpunit-test-framework/node_modules/
+/tests/gl-phpunit-test-framework/vendor/
+/tests/gl-phpunit-test-framework/build/
+/tests/gl-phpunit-test-framework/coverage/
+/tests/gl-phpunit-test-framework/logs/
+/tests/gl-phpunit-test-framework/*.log
+/tests/gl-phpunit-test-framework/*.xml
+/tests/gl-phpunit-test-framework/*.lock
+# Ignore changes inside submodule except for the reference
+/tests/gl-phpunit-test-framework/*
+!/tests/gl-phpunit-test-framework/.gitmodules
+!/tests/gl-phpunit-test-framework
+
+# Coverage reports
+coverage/
+build/
+logs/
+*.log
+
+# Test environment files (keep only samples)
+/tests/.env.testing
+/tests/.env.local
+/tests/.env
+/tests/.env.sample.testing
+.env
+.env.*
+
+# PHP_CodeSniffer
+/.phpcs.cache
+/phpcs.xml
+# Keep phpcs.xml.dist
+
+# PHPStan
+/phpstan.neon
+# Keep phpstan.neon.dist
+
+# PHPStorm/VSCode/other IDEs
+.idea/
+.vscode/
+*.iml
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+.windsurfrules
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.bak
+*.tmp
+*.log
+
+
+# WordPress test library (for integration tests)
+/tmp/
+/wordpress/
+/wp-content/
+/tests/wp-tests-config.php
+
+# Test artifacts
+/coverage/
+/clover.xml
+/.coverage/
+.prompt_shown
+
+# Environment files
+.env
+.env.*
+**/php.ini
+
+# Ignore backup and temp files
+*~
+*.log
+*.cache
+*.orig
+*.tmp
+junk.txt
+changes.diff
+cascade-bug-report.md
+
+# Keep all configuration templates (*.dist files)
+!*.dist
