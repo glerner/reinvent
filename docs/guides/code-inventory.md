@@ -1,4 +1,12 @@
-# Code Inventory: Reinvent Coaching Process Plugin (WordPress Naming Conventions)
+# Code Inventory: Reinvent Coaching Process Plugin
+
+## WordPressNaming Conventions
+- **Classes:** PascalCase (e.g., `Journey_Answer_Service`)
+- **Functions/Methods:** snake_case (e.g., `add_answer`)
+- **Parameters:** snake_case
+- **WordPress Hooks/Filters/Template Functions:** snake_case (e.g., `reinvent_journey_list_view`)
+
+Use these conventions throughout the codebase for clarity and consistency.
 
 ## Namespace & Coding Conventions
 
@@ -9,196 +17,243 @@
   // If you're in this namespace:
   namespace GL_Reinvent\Service;
   // Reference a child namespace like this:
-  use Model\User_Profile;
-  // Refers to Reinvent_Coaching_Process\Service\Model\User_Profile
+  use Model\Person_Profile;
+  // Refers to Reinvent_Coaching_Process\Service\Model\Person_Profile
   ```
 - Directory structure and namespaces must match (PSR-4).
 
-## Exception Handling
-
-- A global exception handler (using `set_exception_handler`) is registered in plugin bootstrap.
-- All uncaught exceptions (`\Throwable`) are caught and displayed in a user-friendly format (with color in CLI, or styled HTML in admin/frontend).
-- Handler provides message, file, line, and stack trace; exits with error code 1.
-- Example:
-  ```php
-  set_exception_handler(function(\Throwable $e) {
-      // Display formatted error
-      exit(1);
-  });
-  ```
-
 ## Data Models / Structures
 
-Note: PK is Primary Key for a database table. FK is Foreign Key, for looking up information in another table.
+Table names will use wp-config.php table prefix + 'reinvent_', not mentioned here
 
-### User_Profile
-- `id` (PK, int): Unique identifier for the person being guided (referenced by all phase tables as `person_user_id`)
-- `person_name` (string)
-- `created_at`, `updated_at` (datetime)
-- [Future fields: personality_type, skills, etc.]
+### Person_Profile
+Rich profile for the person being guided (User entered, ai_person_summary AI-generated, all user-editable)
+
+Table: wp_reinvent_person_profiles
+- `id` (PK, int): Unique identifier for the person being guided (referenced by all other tables as `person_id`)
+- `person_name` (string) — Name of the person being guided
+- `email_address` (string) - send PDF/ODT/Markdown of entire results (future enhancement, need email opt-in)
+- `personality_type` (string)
+- `motivators` (text)
+- `avoidances` (text)
+- `learning_style` (string)
+- `interests` (text)
+- `accomplishments` (text)
+- `skills` (text)
+- `talents` (text)
+- `current_learning` (text)
+- `external_feedback` (text) — What others say they are good at
+- `goals` (text) — What they want to achieve
+- `drawn_to` (text)
+- `wants_to_learn` (text)
+- `passions` (text)
+- `ai_person_summary` (JSON) # AI-generated summary of the profile
+- `coach_id` (int, FK to WP user) # WordPress user id using this plugin
+- `notes` (text)
+- `last_modified` (datetime)
+
+*Relationships:*
+- `person_id` in Journey references `Person_Profile.id`
 
 ### Journey
-- `id` (PK, int)
-- `coach_user_id` (int, FK to WP user)
-- `person_user_id` (int, FK to User_Profile.id)
-- `title` (string)
-- `created_at`, `updated_at` (datetime)
+
+Represents a reinvention journey for a specific person. Each journey (major change of their life) would have a set of answers to questions (journey answers).
+
+Table: wp_reinvent_journeys
+- `id` (int, PK)
+- `person_id` (int, FK to Person_Profile.id) — unique identifier for the person being guided
+- `title` (string) Name of this journey, a time of major change
+- `notes` (text)
+- `last_modified` (datetime)
+
+*Relationships:*
+- `journey_id` in Journey_Answer references `Journey.id`
 
 ### Journey_Question
+Questions are stored in a static PHP array for easy access and modification.
+
+Table: wp_reinvent_journey_questions or array: $reinvent_journey_questions
 - `id` (PK, int)
 - `phase_type` (string)
-- `question_key` (string)
+  - what_do_you_want | What do you want
+  - your_values_strengths | Your values and strengths
+  - done_this_before | You have done this before
+  - next_reinvention | What might be your next reinvention
+- `question_key` (string) # Internal descriptive key for the question
 - `question_heading` (string) - H2/H3 tag
-- `question_text` (string) - P tag
-- `is_active` (boolean)
-- `created_at`, `updated_at` (datetime)
+- `question_text` (string) - P tag, describes the question
+- `notes` (text)
 
-### Journey_Step
-- `id` (PK, int)
+*Relationships:*
+- `question_id` in Journey_Answer references `Journey_Question.id`
+
+### Journey_Answer
+Represents a step in the Hero's Journey/Super-Self process for a specific journey
+
+Table: wp_reinvent_journey_answers
+- `id` (int, PK)
+- `person_id` (int, FK to Person_Profile.id)
 - `journey_id` (int, FK to Journey.id)
 - `question_id` (int, FK to Journey_Question.id)
-- `content` (text/JSON)
-- `created_at` (datetime)
+- `answer` (text/JSON) # user-entered, might contain Markdown, or basic formatting available to a Paragraph block
+- `notes` (text) # for User to put whatever they want, including reminders to themselves
+- `last_modified` (datetime)
 
-**Note:** Questions are stored in a static PHP array for easy access and modification.
-
-**Relationships:**
-- `person_user_id` in Journey references `User_Profile.id`
-- `journey_id` in Journey_Step references `Journey.id`
-- `question_id` in Journey_Step references `Journey_Question.id`
-
-## Core Classes / Services
-
-## Data Models / Structures
-
-- **Journey**: Represents a reinvention journey for a specific person, guided by the logged-in user (the coach/facilitator)
-  - `id` (int, PK)
-  - `coach_user_id` (int) — WordPress user ID of the facilitator/coach (the logged-in user)
-  - `person_user_id` (string|int|null) — unique identifier for the person being guided, not a WordPress user ID.
-  - `title` (string)
-  - `created_at` (datetime)
-  - `updated_at` (datetime)
-
-- **Journey_Step**: Represents a step in the Hero's Journey/Super Self process for a specific journey
-  - `id` (int, PK)
-  - `journey_id` (int, FK to Journey)
-  - `question_id` (int, FK to Journey_Question)
-  - `content` (text/JSON)
-  - `created_at` (datetime)
-
-- **User_Profile**: Rich profile for the person being guided (AI-generated, user-editable)
-  - `id` (int, PK)
-  - `person_name` (string) — Name of the person being guided
-  - `person_user_id` (string|int|null)
-  - `personality_type` (string)
-  - `motivators` (text)
-  - `avoidances` (text)
-  - `learning_style` (string)
-  - `interests` (text)
-  - `accomplishments` (text)
-  - `skills` (text)
-  - `talents` (text)
-  - `current_learning` (text)
-  - `external_feedback` (text) — What others say they are good at
-  - `goals` (text) — What they want to achieve
-  - `drawn_to` (text)
-  - `wants_to_learn` (text)
-  - `passions` (text)
-  - `created_at` (datetime)
-  - `updated_at` (datetime)
-
-### Custom Post Type
-- **reinvent_journey** — Stores each journey as a custom post type. Each post represents a reinvention process for a specific person. Post meta stores person_name, person_user_id, and other metadata.
-
-### Custom DB Tables
-- uses wp-config.php table prefix, represented here by 'wp_'
-- **wp_reinvent_journeys**
-  - id (PK), coach_user_id (FK), person_name, person_user_id, title, created_at, updated_at
-- **wp_reinvent_journey_steps**
-  - id (PK), journey_id (FK), step_type, content, created_at
-- **wp_reinvent_user_profiles**
-  - id (PK), person_name, person_user_id, ... (see User_Profile fields above), created_at, updated_at
+*Note:* One row per question/answer is recommended for querying/filtering.
 
 ## Core Classes / Services
 
 ### Reinvent_Journey_Service
-- `create_journey( $coach_user_id, $person_name, $person_user_id, $title )`
-  - Create a new reinvention journey for a given person, guided by the logged-in coach.
-- `get_journeys_by_coach( $coach_user_id )`
-  - Retrieve all journeys created by a specific coach (logged-in user).
-- `get_journeys_for_person( $coach_user_id, $person_user_id )`
-  - Retrieve all journeys for a specific person, as guided by the coach.
-- `get_journey( $journey_id )`
-  - Get a single journey by ID.
-- `update_journey( $journey_id, $data )`
-  - Update journey details.
-- `delete_journey( $journey_id )`
-  - Delete a journey.
 
-**Class Signature:**
+**Name:** Reinvent_Journey_Service
+
+**Location:** `/src/Service/Reinvent_Journey_Service.php`
+
+**Purpose:** Manage journeys for a specific person, guided by a coach (WordPress user, often self-coaching).
+
+Every person has already had several major life changes. Each of these is a journey.
+
+Supports creation, retrieval, update, and deletion of journeys.
+
+**Signatures:**
 ```php
 class Reinvent_Journey_Service {
-    public function create_journey( $coach_user_id, $person_name, $person_user_id, $title );
-    public function get_journeys_by_coach( $coach_user_id );
-    public function get_journeys_for_person( $coach_user_id, $person_user_id );
-    public function get_journey( $journey_id );
-    public function update_journey( $journey_id, $data );
-    public function delete_journey( $journey_id );
+    /**
+     * List all people's journeys for the current coach (shorthand for list_journeys(['coach_id' => current_user_id])).
+     * @return array[] Array of associative arrays, each containing long text fields.
+     * @throws \Exception on DB error
+     */
+    public function list_journeys_for_coach();
+
+    /**
+     * List all journeys for the current coach (shorthand for list_journeys(['coach_id' => current_user_id])).
+     * @return array[] Array of associative arrays, each containing long text fields.
+     * @throws \Exception on DB error
+     */
+    public function list_journeys_by_coach();
+
+    /**
+     * List all journeys for a specific person (shorthand for list_journeys(['person_id' => $person_id])).
+     * @param int $person_id
+     * @return array[] Array of associative arrays, each containing long text fields.
+     */
+    public function list_journeys_for_person($person_id);
+
+    /**
+     * List journeys using arbitrary filters.
+     * @param array $filters
+     * @return array[] Array of associative arrays, each containing long text fields.
+     */
+    public function list_journeys($filters = []);
+
+    /**
+     * Get a single journey by ID.
+     * @param int $journey_id
+     * @return array[] Array of associative arrays, each containing long text fields.
+     * @throws \Exception on DB error or if not found
+     */
+    public function get_journey($journey_id);
+
+    /**
+     * Add a new journey.
+     * @param int $person_id
+     * @param string $title Name of this journey, a time of major change
+     * @return int Journey ID on success
+     * @throws \Exception on DB error or invalid input
+     */
+    public function add_journey($person_id, $title);
+
+    /**
+     * Update a journey.
+     * @param int $journey_id
+     * @param array $answers
+     * @return bool
+     * @throws \Exception on DB error or invalid input
+     */
+    public function update_journey($journey_id, $answers);
+
+    /**
+     * Delete a journey.
+     * @param int $journey_id
+     * @return bool
+     * @throws \Exception on DB error or if not found
+     */
+    public function delete_journey($journey_id);
 }
 ```
 
-  **Example Function with PHPDoc:**
-  ```php
-  /**
-   * Create a new reinvention journey for a person, guided by a coach.
-   *
-   * @param int $coach_user_id WordPress user ID of the coach/facilitator
-   * @param string $person_name Name of the person being guided
-   * @param int|string|null $person_user_id Unique ID for the person being guided (optional)
-   * @param string $title Title of the journey
-   * @return int|WP_Error Journey ID on success, WP_Error on failure
-   */
-  public function create_journey( $coach_user_id, $person_name, $person_user_id, $title ) {
-      // Implementation here...
-  }
-  ```
+### Journey_Answer_Service
 
-### Journey_Step_Service
-- `add_step( $journey_id, $step_type, $content )`
-  - Add a step to a journey.
-- `get_steps( $journey_id )`
-  - Get all steps for a journey.
-- `update_step( $step_id, $content )`
-  - Update a step's content.
-- `delete_step( $step_id )`
-  - Delete a step.
+**Name:** Journey_Answer_Service
 
-**Class Signature:**
+**Location:** `/src/Service/Journey_Answer_Service.php`
+
+**Purpose:** Add, retrieve, update, and delete answers to questions for a given journey.
+
+**Signature:**
 ```php
-class Journey_Step_Service {
-    public function add_step( $journey_id, $step_type, $content );
-    public function get_steps( $journey_id );
-    public function update_step( $step_id, $content );
-    public function delete_step( $step_id );
+class Journey_Answer_Service {
+    /**
+     * Add answers to a journey.
+     * @param int $journey_id
+     * @param array $answers
+     * @return bool True on success
+     * @throws \Exception on DB error or invalid input
+     */
+    public function add_answers($journey_id, array $answers);
+
+    /**
+     * Get all answers for a journey.
+     * @param int $journey_id
+     * @return array[] Array of associative arrays, each containing long text fields.
+     * @throws \Exception on DB error or if not found
+     */
+    public function get_answers($journey_id);
+
+    /**
+     * Update answers for a journey.
+     * @param int $journey_id
+     * @param array $answers
+     * @return bool True on success
+     * @throws \Exception on DB error or invalid input
+     */
+    public function update_answers($journey_id, array $answers);
+
+    /**
+     * Delete all answers for a journey.
+     * @param int $journey_id
+     * @return bool True on success
+     * @throws \Exception on DB error or if not found
+     */
+    public function delete_answers($journey_id);
 }
 ```
 
-### Personality_Analysis_Service (future)
-- `analyze_profile( $person_user_id )`
-  - Analyze a person's profile (AI-powered, future feature).
-- `suggest_reinventions( $journey_id )`
-  - Suggest reinventions for a journey (future feature).
+### Personality_Analysis_Service
 
-**Class Signature:**
 ```php
+/**
+ * Service for analyzing a person's profile using AI.
+ * Will query AI specified in Settings.
+ */
 class Personality_Analysis_Service {
-    public function analyze_profile( $person_user_id );
-    public function suggest_reinventions( $journey_id );
+    /**
+     * Analyze a person's profile and return insights.
+     * @param int $person_id
+     * @return array[] Array of associative arrays, each containing long text fields.
+     * @throws \Exception on analysis error or invalid input
+     */
+    public function analyze_profile($person_id);
+
+    /**
+     * Suggest reinventions for a journey (future feature).
+     * @param int $journey_id
+     * @return array[] Array of associative arrays, each containing long text fields.
+     * @throws \Exception on analysis error, DB error, or invalid input
+     */
+    public function suggest_reinventions($journey_id);
 }
 ```
-
-**Multi-person Guidance Logic:**
-- All methods in Reinvent_Journey_Service and related controllers/services take `$coach_user_id` (the logged-in user) and `$person_user_id` (the person being guided) as parameters, ensuring one coach can guide multiple people, each with their own journeys and steps.
 
 ## Controllers
 
@@ -208,25 +263,110 @@ Handles user requests for creating, viewing, editing journeys.
 **Class Signature:**
 ```php
 class Reinvent_Journey_Controller {
-    public function list_journeys( $coach_user_id ); // List all journeys for the coach
-    public function view_journey( $coach_user_id, $journey_id ); // View a single journey
-    public function create_journey( $coach_user_id, $person_name, $person_user_id, $title ); // Create a new journey
-    public function update_journey( $coach_user_id, $journey_id, $data ); // Update a journey
-    public function delete_journey( $coach_user_id, $journey_id ); // Delete a journey
+    /**
+     * List all journeys for a specific person (shorthand for list_journeys(['person_id' => $person_id])).
+     * @param int $person_id
+     * @return array[] Array of associative arrays, each containing long text fields.
+     */
+    public function list_journeys_for_person($person_id);
+
+    /**
+     * List journeys using arbitrary filters.
+     * @param array $filters
+     * @return array[] Array of associative arrays, each containing long text fields.
+     */
+    public function list_journeys($filters = []);
+
+    /**
+     * Get a single journey by ID (for internal use).
+     * @param int $journey_id
+     * @return array[] Array of associative arrays, each containing long text fields.
+     * @throws \Exception on DB error or if not found
+     */
+    public function get_journey($journey_id);
+
+    /**
+     * Render the journey detail view.
+     * @param int $journey_id
+     * @return void
+     * @throws \Exception on DB error or if not found
+     */
+    public function view_journey($journey_id);
+
+    /**
+     * Add a new journey.
+     * @param int $person_id
+     * @param string $title
+     * @return int
+     * @throws \Exception on DB error
+     */
+    public function add_journey($person_id, $title);
+
+    /**
+     * Update a journey.
+     * @param int $journey_id
+     * @param array $answers
+     * @return bool
+     * @throws \Exception on DB error
+     */
+    public function update_journey($journey_id, $answers);
+
+    /**
+     * Delete a journey.
+     * @param int $journey_id
+     * @return bool
+     * @throws \Exception on DB error
+     */
+    public function delete_journey($journey_id);
 }
 ```
 
-### Journey_Step_Controller
-Handles adding/editing steps within a journey.
+### Journey_Answer_Controller
+Handles adding/editing answers within a journey.
 
 **Class Signature:**
 ```php
-class Journey_Step_Controller {
-    public function list_steps( $coach_user_id, $journey_id ); // List all steps for a journey
-    public function view_step( $coach_user_id, $step_id ); // View a single step
-    public function add_step( $coach_user_id, $journey_id, $step_type, $content ); // Add a new step
-    public function update_step( $coach_user_id, $step_id, $content ); // Update a step
-    public function delete_step( $coach_user_id, $step_id ); // Delete a step
+class Journey_Answer_Controller {
+    /**
+     * List all answers for a journey.
+     * @param int $journey_id
+     * @return array[] Array of associative arrays, each containing long text fields.
+     */
+    public function list_answers($journey_id);
+
+    /**
+     * View a single answer.
+     * @param int $answer_id
+     * @return array[] Array of associative arrays, each containing long text fields.
+     */
+    public function view_answer($answer_id);
+
+    /**
+     * Add a new answer.
+     * @param int $journey_id
+     * @param string $answer_type
+     * @param string $content
+     * @return bool
+     * @throws \Exception on DB error or invalid input
+     */
+    public function add_answer($journey_id, $answer_type, $content);
+
+    /**
+     * Update an answer.
+     * @param int $answer_id
+     * @param string $content
+     * @return bool
+     * @throws \Exception on DB error or invalid input
+     */
+    public function update_answer($answer_id, $content);
+
+    /**
+     * Delete an answer.
+     * @param int $answer_id
+     * @return bool
+     * @throws \Exception on DB error or if not found
+     */
+    public function delete_answer($answer_id);
 }
 ```
 
@@ -248,30 +388,49 @@ Displays a list of all reinvention journeys for the logged-in coach/facilitator.
 - **Assets:**
   - Enqueues CSS/JS for filtering, searching, or pagination if needed
 
+```php
+/**
+ * Render the list view of journeys.
+ * @param array[] $journeys List of journeys to display
+ * @return void
+ */
+function reinvent_journey_list_view($journeys);
+```
+
 ### reinvent_journey_detail_view
-Shows all steps, questions, and answers for a specific journey and person.
+Shows all answers, questions, and answers for a specific journey and person.
 - **Data Source:**
-  - Receives data from `Reinvent_Journey_Controller::view_journey()` and `Journey_Step_Controller::list_steps()` (PHP) or via REST API (`GET /wp-json/reinvent/v1/journeys/{id}`)
+  - Receives data from `Reinvent_Journey_Controller::view_journey()` and `Journey_Answer_Controller::list_answers()` (PHP) or via REST API (`GET /wp-json/reinvent/v1/journeys/{id}`)
 - **Interaction:**
-  - Fetches journey and associated steps for display
-  - May allow navigation between steps
+  - Fetches journey and associated answers for display
+  - May allow navigation between answers
 - **Display:**
   - Uses custom template `templates/journey-detail.php` or block render callback
   - Uses WordPress functions for escaping and formatting output
 - **Extensibility:**
-  - Action hooks before/after journey and step output (e.g., `do_action('reinvent_before_journey_detail')`)
+  - Action hooks before/after journey and answer output (e.g., `do_action('reinvent_before_journey_detail')`)
 - **Assets:**
-  - Enqueues CSS for layout, and JS for navigation or step expansion
+  - Enqueues CSS for layout, and JS for navigation or answer expansion
 
-### journey_step_form_view
-Presents a dynamic form for entering or editing answers for each process step/question.
+```php
+/**
+ * Render the detail view for a single journey.
+ * @param array[] $journey Journey data
+ * @return void
+ */
+function reinvent_journey_detail_view($journey);
+```
+
+### journey_answer_form_view
+Presents a dynamic form for entering or editing answers for each process answer/question.
 - **Data Source:**
-  - Receives data from `Journey_Step_Controller::view_step()` (PHP) or REST API (`GET /wp-json/reinvent/v1/steps/{id}`)
+  - Receives data from `Journey_Answer_Controller::view_answer()` (PHP) or REST API (`GET /wp-json/reinvent/v1/answers/{id}`)
 - **Interaction:**
+  - Submits data to controller or REST endpoint for saving (`POST /wp-json/reinvent/v1/answers` or AJAX)
   - Submits data to controller or REST endpoint for saving (`POST /wp-json/reinvent/v1/steps` or AJAX)
   - Calls validation helper before saving
 - **Display:**
-  - Uses custom template `templates/step-form.php` or block render callback
+  - Uses custom template `templates/answer-form.php` or block render callback
   - Uses WordPress form functions (`wp_nonce_field`, `wp_create_nonce`, etc.)
 - **Extensibility:**
   - Filters for modifying form fields (`reinvent_step_form_fields`)
@@ -279,7 +438,17 @@ Presents a dynamic form for entering or editing answers for each process step/qu
 - **Assets:**
   - Enqueues JS for dynamic fields, validation, and autosave; CSS for form styling
 
-### analysis_view (future)
+```php
+/**
+ * Render the form for editing/adding answers to a journey.
+ * @param array[] $journey Journey data
+ * @param array[] $answers List of answers
+ * @return void
+ */
+function journey_answer_form_view($journey, $answers);
+```
+
+### analysis_view
 Displays AI-powered insights and recommendations based on the journey and profile data.
 - **Data Source:**
   - Receives data from `Personality_Analysis_Service` (PHP) or REST API endpoint
@@ -294,24 +463,49 @@ Displays AI-powered insights and recommendations based on the journey and profil
 - **Assets:**
   - JS for interactive charts or AI feedback; CSS for highlighting insights
 
+```php
+/**
+ * Render the analysis view for a person's profile.
+ * @param array[] $analysis Analysis results
+ * @return void
+ */
+function analysis_view($analysis);
+```
+
 ## Utilities / Helpers
-- **Questionnaire_Helper**: Loads and manages the reflective questions and explanations (from config, DB, or file)
-- **Validation_Helper**: Validates user input for each step
+- Utility/helper functions should follow camelCase for PHP and snake_case for WordPress integration.
+
+```php
+/**
+ * Utility to sanitize journey data.
+ * @param array[] $data Array of associative arrays, each containing long text fields.
+ * @return array[] Sanitized data
+ */
+function sanitize_journey_data($data);
+```
 
 ## WordPress Plugin Infrastructure & Integration
 
 ### Plugin Registration & Initialization
-- Registers the plugin with WordPress (`reinvent-coaching-process.php` main file)
-- Loads text domain for translations
-- Registers activation/deactivation hooks
-- Initializes core services, controllers, and custom post types/tables
-- Hooks: `plugins_loaded`, `init`, `register_activation_hook`, `register_deactivation_hook`
+
+```php
+/**
+ * Register and initialize the plugin.
+ * @return void
+ * @throws \Exception on plugin load failure
+ */
+function reinvent_plugin_init();
+```
 
 ### Settings & Options
-- Adds plugin settings/options page in the WordPress admin
-- Stores settings in the options table (e.g., default behaviors, export options, AI integration keys)
-- Hooks: `admin_menu`, `admin_init`, `add_options_page`
-- File: `src/Admin/Settings_Page.php`
+
+```php
+/**
+ * Register plugin settings and options.
+ * @return void
+ */
+function reinvent_register_settings();
+```
 
 ### Block Registration
 - Registers one or more custom Gutenberg blocks for embedding the coaching UI in posts/pages
@@ -341,6 +535,23 @@ Displays AI-powered insights and recommendations based on the journey and profil
 ### Hooks & Filters
 - Provides custom hooks and filters for extensibility (e.g., `reinvent_journey_saved`, `reinvent_profile_updated`)
 - Allows other plugins/themes to extend or modify plugin behavior
+
+## Exception Handling
+
+- A global exception handler (using `set_exception_handler`) is registered in plugin bootstrap.
+- All uncaught exceptions (`\Throwable`) are caught and displayed in a user-friendly format (with color in CLI, or styled HTML in admin/frontend).
+- Handler provides message, file, line, and stack trace; exits with error code 1.
+- Example:
+  ```php
+  set_exception_handler(function(\Throwable $e) {
+      // Display formatted error
+      exit(1);
+  });
+  ```
+
+### Permissions
+
+- **user_id** (int, FK to WordPress user): Reserved for future use in role/permission management. For now, WordPress Author permissions are sufficient for all plugin actions.
 
 ### Other WordPress Integrations
 - Loads plugin text domain for translation
