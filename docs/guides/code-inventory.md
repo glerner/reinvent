@@ -69,20 +69,31 @@ Table: wp_reinvent_journeys
 *Relationships:*
 - `journey_id` in Journey_Answer references `Journey.id`
 
-### Journey_Question
+### Phase Descriptions Structure
+Phase descriptions provide context and guidance for each phase of the reinvention journey. These are stored in a static PHP array in `Journey_Questions_Model`.
+
+- **Location:** `GL_Reinvent\Model\Journey_Questions_Model`, `$descriptions` array
+- **Structure:**
+  - `heading` (string): Short heading text for the phase.
+  - `description` (string): Long, descriptive text for the phase. May include HTML for formatting.
+  - `closing` (string): Optional closing/summary text for the phase. May include HTML for formatting.
+- **Allowed HTML tags:** `<p>`, `<br>`, `<i>`, `<b>`, `<ul>`, `<li>`, `<code>`, `<img>`, flexbox-related markup, WordPress video embedding.
+
+### Journey Questions Structure
 Questions are stored in a static PHP array for easy access and modification.
 
 Table: wp_reinvent_journey_questions or array: $reinvent_journey_questions
 - `id` (PK, int)
 - `phase_type` (string)
-  - what_do_you_want | What do you want
-  - your_values_strengths | Your values and strengths
-  - done_this_before | You have done this before
-  - next_reinvention | What might be your next reinvention
-- `question_key` (string) # Internal descriptive key for the question
-- `question_heading` (string) - H2/H3 tag
-- `question_text` (string) - P tag, describes the question
-- `notes` (text)
+  - what_do_you_want | What do you want?
+  - what_reinventions_already | What ways have you Reinvented yourself already?
+  - your_values_strengths | Your values and strengths?
+  - done_this_before | You have done this before?
+  - next_reinvention | What might be your next reinvention?
+- `question_key` (string): Internal descriptive key for the question
+- `question_heading` (string): Short heading (H2/H3)
+- `question_text` (string): Long text describing the question. May include HTML for formatting. **Allowed HTML tags:** `<p>`, `<br>`, `<i>`, `<b>`, `<ul>`, `<li>`, `<code>`, `<img>`, flexbox-related markup, WordPress video embedding.
+- `notes` (text, for user notes; store in database but no current plugin use for it)
 
 *Relationships:*
 - `question_id` in Journey_Answer references `Journey_Question.id`
