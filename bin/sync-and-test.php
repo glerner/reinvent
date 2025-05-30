@@ -31,11 +31,18 @@ namespace WP_PHPUnit_Framework\Bin;
  * SCRIPT_DIR should be your-plugin/tests/bin
  * PROJECT_DIR should be your-plugin
 */
-define('SCRIPT_DIR', __DIR__);
-define('PROJECT_DIR', dirname(dirname(__DIR__)));
+define('PROJECT_DIR', dirname(__DIR__));
+define('SCRIPT_DIR', PROJECT_DIR . '/tests/bin');
+define('TESTS_DIR', PROJECT_DIR . '/tests');
+define('PHPUNIT_FRAMEWORK_DIR', PROJECT_DIR . '/tests/gl-phpunit-test-framework');
+
+echo "Project Dir: " . PROJECT_DIR . "\n";
+echo "Script Dir: " . SCRIPT_DIR . "\n";
+echo "Tests Dir: " . TESTS_DIR . "\n";
+echo "PHPUnit Framework Dir: " . PHPUNIT_FRAMEWORK_DIR . "\n";
 
 // Include the framework utility functions
-require_once SCRIPT_DIR . '/framework-functions.php';
+require_once PHPUNIT_FRAMEWORK_DIR . '/bin/framework-functions.php';
 
 use function WP_PHPUnit_Framework\load_settings_file;
 use function WP_PHPUnit_Framework\get_phpunit_database_settings;
@@ -213,10 +220,15 @@ colored_message("\nStep 3: Running tests...", 'green');
  * @param string $config_file The PHPUnit configuration file to use
  * @param string $test_type   The type of test (unit, wp-mock, integration)
  * @param array  $options     Command line options
+ * @param string $plugin_dir  The WordPress plugin directory path
  * @return string The complete PHPUnit command
  */
-function build_phpunit_command($config_file, $test_type, $options) {
-	$cmd = "./vendor/bin/phpunit -c config/{$config_file}";
+function build_phpunit_command($config_file, $test_type, $options, $plugin_dir='') {
+	if (empty($plugin_dir)) {
+		$plugin_dir = getcwd();
+	}
+	$wp_plugin_tests_dir = rtrim($plugin_dir, '/') . '/tests';
+	$cmd = "./vendor/bin/phpunit -c " . escapeshellarg($wp_plugin_tests_dir . '/config/' . $config_file);
 
 	// Add verbose option if requested
 	if ($options['verbose']) {
@@ -240,19 +252,19 @@ function build_phpunit_command($config_file, $test_type, $options) {
 if ($options['unit']) {
 	// Run unit tests
 	colored_message("Running unit tests...", 'blue');
-	$phpunit_cmd = build_phpunit_command('phpunit-unit.xml.dist', 'unit', $options);
+	$phpunit_cmd = build_phpunit_command('phpunit-unit.xml.dist', 'unit', $options, $your_plugin_dest);
 	colored_message("Executing: $phpunit_cmd", 'blue');
 	passthru($phpunit_cmd, $phpunit_return);
 } elseif ($options['wp-mock']) {
-	// Run WP Mock tests
-	colored_message("Running WP Mock tests...", 'blue');
-	$phpunit_cmd = build_phpunit_command('phpunit-wp-mock.xml.dist', 'wp-mock', $options);
+	// Run WP_Mock tests
+	colored_message("Running WP_Mock tests...", 'blue');
+	$phpunit_cmd = build_phpunit_command('phpunit-wp-mock.xml.dist', 'wp-mock', $options, $your_plugin_dest);
 	colored_message("Executing: $phpunit_cmd", 'blue');
 	passthru($phpunit_cmd, $phpunit_return);
 } elseif ($options['integration']) {
 	// Run integration tests
 	colored_message("Running integration tests...", 'blue');
-	$phpunit_cmd = build_phpunit_command('phpunit-integration.xml.dist', 'integration', $options);
+	$phpunit_cmd = build_phpunit_command('phpunit-integration.xml.dist', 'integration', $options, $your_plugin_dest);
 	colored_message("Executing: $phpunit_cmd", 'blue');
 	passthru($phpunit_cmd, $phpunit_return);
 } elseif ($options['all']) {
@@ -260,19 +272,19 @@ if ($options['unit']) {
 
 	// Run unit tests
 	colored_message("\nRunning unit tests...", 'blue');
-	$unit_cmd = build_phpunit_command('phpunit-unit.xml.dist', 'unit', $options);
+	$unit_cmd = build_phpunit_command('phpunit-unit.xml.dist', 'unit', $options, $your_plugin_dest);
 	colored_message("Executing: $unit_cmd", 'blue');
 	passthru($unit_cmd, $unit_return);
 
 	// Run WP Mock tests
 	colored_message("\nRunning WP Mock tests...", 'blue');
-	$wp_mock_cmd = build_phpunit_command('phpunit-wp-mock.xml.dist', 'wp-mock', $options);
+	$wp_mock_cmd = build_phpunit_command('phpunit-wp-mock.xml.dist', 'wp-mock', $options, $your_plugin_dest);
 	colored_message("Executing: $wp_mock_cmd", 'blue');
 	passthru($wp_mock_cmd, $wp_mock_return);
 
 	// Run integration tests
 	colored_message("\nRunning integration tests...", 'blue');
-	$integration_cmd = build_phpunit_command('phpunit-integration.xml.dist', 'integration', $options);
+	$integration_cmd = build_phpunit_command('phpunit-integration.xml.dist', 'integration', $options, $your_plugin_dest);
 	colored_message("Executing: $integration_cmd", 'blue');
 	passthru($integration_cmd, $integration_return);
 

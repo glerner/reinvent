@@ -1,6 +1,7 @@
 # Code Inventory: Reinvent Coaching Process Plugin
 
 ## WordPressNaming Conventions
+- **Files:** lowercase-with-hyphens (e.g. `wp-config.php`)
 - **Classes:** PascalCase (e.g., `Journey_Answer_Service`)
 - **Functions/Methods:** snake_case (e.g., `add_answer`)
 - **Parameters:** snake_case
