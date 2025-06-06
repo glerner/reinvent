@@ -20,7 +20,7 @@ The app will ask the user about themselves:
 
 - Interactive questionnaire with explanations for each step of the reinvention process
 
-- Supports multiple reinvention journeys per user (each as a database record)
+- Supports multiple reinvention journeys per user
 
 - Save, retrieve, and edit answers at any time
 
@@ -43,17 +43,53 @@ The app will ask the user about themselves:
 ### Installation
 1. Clone this repository into your WordPress `wp-content/plugins/` directory:
    ```bash
+   cd ~/your-sites-wordpress/wp-content/plugins
    git clone https://github.com/glerner/reinvent.git reinvent-coaching-process
+   cd reinvent-coaching-process
    ```
-2. Add the PHPUnit testing framework as a submodule:
+
+2. Initialize and update submodules:
    ```bash
-   git submodule add https://github.com/glerner/phpunit-testing.git tests/gl-phpunit-test-framework
+   git submodule update --init --recursive
    ```
-3. Install dependencies (if any):
+
+3. Install Composer dependencies:
    ```bash
    composer install
    ```
-4. Activate the plugin from the WordPress admin dashboard.
+
+## Development Setup
+
+### Composer Configuration
+The plugin uses Composer for autoloading and dependency management. The root `composer.json` defines the autoloading for the `GL_Reinvent` namespace.
+
+### Testing Framework
+The testing framework is included as a Git submodule. The `sync-to-wp.php` script handles merging the test framework's Composer configuration with the plugin's configuration.
+
+### Running Tests
+
+1. Ensure you have a local WordPress installation with a test database
+2. Copy `.env.testing.example` to `.env.testing` and update the database credentials
+3. Run the sync and test script:
+   ```bash
+   php bin/sync-and-test.php --unit
+   ```
+
+Available test commands:
+- `--unit`: Run unit tests
+- `--wp-mock`: Run WP_Mock tests
+- `--integration`: Run integration tests
+- `--all`: Run all test suites
+
+### Development Workflow
+1. Make your code changes
+2. Write or update tests
+3. Run the tests:
+   ```bash
+   php bin/sync-and-test.php --unit
+   ```
+4. The script will automatically sync your changes to the test environment and run the tests
+5. Activate the plugin from the WordPress admin dashboard.
 
 ## Development
 - Follows WordPress coding standards and naming conventions

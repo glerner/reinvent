@@ -573,4 +573,27 @@ function reinvent_register_settings();
 - File: `uninstall.php`, `languages/`, `src/`
 
 ## Testing
-- **Unit tests** for all services and controllers (PHPUnit)
+
+See the [GL PHPUnit Testing Framework documentation](tests/gl-phpunit-test-framework/docs/guides/code-inventory.md) for complete details on:
+
+- Test types and structure
+- Namespace and naming conventions
+- Test class and method patterns
+- Setup and execution instructions
+
+Test Files:
+
+- Unit Tests: `tests/unit`
+- WP Mock Tests: `tests/wp-mock`
+- Integration Tests: `tests/integration`
+
+To run tests:
+```bash
+# Sync and run all tests
+php bin/sync-and-test.php --all
+
+# Run specific test types
+php bin/sync-and-test.php --unit
+php bin/sync-and-test.php --wp-mock
+php bin/sync-and-test.php --integration
+```

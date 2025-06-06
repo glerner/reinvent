@@ -1,0 +1,26 @@
+{
+    "name": "gl/reinvent",
+    "description": "Reinvent - A WordPress plugin for personal transformation journeys",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "George Lerner",
+            "email": "george.lerner@example.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "php": ">=8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "GL_Reinvent\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    }
+}

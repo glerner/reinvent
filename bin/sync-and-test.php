@@ -36,18 +36,14 @@ define('SCRIPT_DIR', PROJECT_DIR . '/tests/bin');
 define('TESTS_DIR', PROJECT_DIR . '/tests');
 define('PHPUNIT_FRAMEWORK_DIR', PROJECT_DIR . '/tests/gl-phpunit-test-framework');
 
-echo "Project Dir: " . PROJECT_DIR . "\n";
-echo "Script Dir: " . SCRIPT_DIR . "\n";
-echo "Tests Dir: " . TESTS_DIR . "\n";
-echo "PHPUnit Framework Dir: " . PHPUNIT_FRAMEWORK_DIR . "\n";
-
 // Include the framework utility functions
 require_once PHPUNIT_FRAMEWORK_DIR . '/bin/framework-functions.php';
 
 use function WP_PHPUnit_Framework\load_settings_file;
-use function WP_PHPUnit_Framework\get_phpunit_database_settings;
+# use function WP_PHPUnit_Framework\get_phpunit_database_settings;
 use function WP_PHPUnit_Framework\get_setting;
 use function WP_PHPUnit_Framework\esc_cli;
+use function WP_PHPUnit_Framework\is_lando_environment;
 
 // Set default timezone to avoid warnings
 date_default_timezone_set('UTC');
@@ -141,37 +137,71 @@ if ($options['help'] || (!$options['unit'] && !$options['wp-mock'] && !$options[
 // Load settings from .env.testing
 
 $env_file = PROJECT_DIR . '/tests/.env.testing';
-colored_message("Loading settings from .env.testing...", 'blue');
+colored_message("Loading settings from $env_file", 'blue');
 global $loaded_settings;
 $loaded_settings = load_settings_file($env_file);
 
 // Define paths from settings
 
-// FILESYSTEM_WP_ROOT is required - no default fallback
+// Get paths from settings
 $filesystem_wp_root = get_setting('FILESYSTEM_WP_ROOT');
 if (empty($filesystem_wp_root)) {
-	colored_message("Error: FILESYSTEM_WP_ROOT setting is not set.", 'red');
-	colored_message("Please set this in your .env.testing file or environment.", 'red');
-	exit(1);
+    colored_message("Error: FILESYSTEM_WP_ROOT setting is not set.", 'red');
+    colored_message("Please set this in your .env.testing file or environment.", 'red');
+    exit(1);
+}
+
+// WP_ROOT is required - must be set in .env.testing
+$wp_root = get_setting('WP_ROOT');
+if (empty($wp_root)) {
+    colored_message("Error: WP_ROOT setting is not set.", 'red');
+    colored_message("Please set this in your .env.testing file or environment.", 'red');
+    exit(1);
 }
 
 $your_plugin_slug = \WP_PHPUnit_Framework\get_setting('YOUR_PLUGIN_SLUG', 'gl-phpunit-testing-framework');
 $folder_in_wordpress = \WP_PHPUnit_Framework\get_setting('FOLDER_IN_WORDPRESS', 'wp-content/plugins');
-$your_plugin_dest = $filesystem_wp_root . '/' . $folder_in_wordpress . '/' . $your_plugin_slug;
+
+// Set up paths with proper path concatenation
+$your_plugin_dest = rtrim($filesystem_wp_root, '/') . '/' . ltrim($folder_in_wordpress, '/') . '/' . $your_plugin_slug;
+$test_run_path = rtrim($wp_root, '/') . '/' . ltrim($folder_in_wordpress, '/') . '/' . $your_plugin_slug . '/tests';
 
 colored_message("Using paths:", 'blue');
 echo esc_cli("  Project source: " . PROJECT_DIR . "\n");
-echo esc_cli("  WordPress root: " . $filesystem_wp_root . "\n");
-echo esc_cli("  Project destination: " . $your_plugin_dest . "\n");
+echo esc_cli("  Filesystem WordPress root: " . $filesystem_wp_root . "\n");
+echo esc_cli("  WordPress container root: " . $wp_root . "\n");
+echo esc_cli("  Plugin destination: " . $your_plugin_dest . "\n");
+echo esc_cli("  Test run path: " . $test_run_path . "\n");
+
+// Check if we're running in a Lando environment
+$is_lando = is_lando_environment();
+
+if ($is_lando) {
+    colored_message("Running in Lando environment", 'yellow');
+}
+
+// Step 0: Update framework files if needed
+colored_message("Updating WP PHPUnit Test Framework files...", 'blue');
+require_once __DIR__ . '/copy-wp-phpunit-test-framework-convenient-files.php';
 
 // Step 1: Sync plugin to WordPress
 colored_message("\nStep 1: Syncing project to WordPress...", 'green');
 
 // Ensure vendor directory exists in source
 if (!is_dir(PROJECT_DIR . '/tests/vendor')) {
-	colored_message("Installing composer dependencies in source...", 'yellow');
-	chdir(PROJECT_DIR . '/tests');
-	exec('composer install');
+    colored_message("Installing composer dependencies in source...", 'yellow');
+    $tests_dir = PROJECT_DIR . '/tests';
+    chdir($tests_dir);
+    $composer_cmd = $is_lando ? 'lando composer install' : 'composer install';
+    $output = [];
+    $return_var = 0;
+    exec($composer_cmd . ' 2>&1', $output, $return_var);
+
+    if ($return_var !== 0) {
+        colored_message("Error running composer install:", 'red');
+        echo esc_cli(implode("\n", $output) . "\n");
+        exit(1);
+    }
 }
 
 // Create destination directory if it doesn't exist
@@ -190,11 +220,11 @@ if (!file_exists($sync_script)) {
 	exit(1);
 }
 
-// Execute the sync script
+// Execute the sync script - always use filesystem PHP
 colored_message("Executing sync-to-wp.php...", 'blue');
 $sync_cmd = "php $sync_script";
 if ($options['verbose']) {
-	echo esc_cli("Command: $sync_cmd\n");
+    echo esc_cli("Command: $sync_cmd\n");
 }
 passthru($sync_cmd, $sync_return);
 
@@ -203,10 +233,10 @@ if ($sync_return !== 0) {
 	exit($sync_return);
 }
 
-// Step 2: Change to the WordPress plugin directory
-colored_message("\nStep 2: Changing to WordPress plugin directory...", 'green');
-if (!chdir($your_plugin_dest)) {
-	colored_message("Error: Could not change to WordPress plugin directory: $your_plugin_dest", 'red');
+// Step 2: Change to the WordPress plugin, tests directory
+colored_message("\nStep 2: Changing to WordPress plugin Tests directory...", 'green');
+if (!chdir($your_plugin_dest . '/tests')) {
+	colored_message("Error: Could not change to WordPress plugin Tests directory: $your_plugin_dest/tests", 'red');
 	exit(1);
 }
 colored_message("Current directory: " . getcwd(), 'blue');
@@ -217,54 +247,84 @@ colored_message("\nStep 3: Running tests...", 'green');
 /**
  * Build a PHPUnit command with the appropriate options
  *
- * @param string $config_file The PHPUnit configuration file to use
- * @param string $test_type   The type of test (unit, wp-mock, integration)
- * @param array  $options     Command line options
- * @param string $plugin_dir  The WordPress plugin directory path
+ * @param string $test_type     The type of test (unit, wp-mock, integration)
+ * @param array  $options       Command line options
+ * @param string $test_run_path The path where tests will be run from
  * @return string The complete PHPUnit command
  */
-function build_phpunit_command($config_file, $test_type, $options, $plugin_dir='') {
-	if (empty($plugin_dir)) {
-		$plugin_dir = getcwd();
-	}
-	$wp_plugin_tests_dir = rtrim($plugin_dir, '/') . '/tests';
-	$cmd = "./vendor/bin/phpunit -c " . escapeshellarg($wp_plugin_tests_dir . '/config/' . $config_file);
+function build_phpunit_command($test_type, $options, $test_run_path) {
+    global $is_lando, $your_plugin_dest, $wp_root, $folder_in_wordpress, $your_plugin_slug;
 
-	// Add verbose option if requested
-	if ($options['verbose']) {
-		$cmd .= ' --verbose';
-	}
+    // Determine the PHP command
+    $php_command = $is_lando ? 'lando php' : 'php';
+    $base_name = 'phpunit-' . $test_type;
+    $config_dir = $your_plugin_dest . '/tests/config/';
 
-	// Add coverage option if requested
-	if ($options['coverage']) {
-		$cmd .= " --coverage-html build/coverage-{$test_type}";
-	}
+    // Look for config file in the filesystem
+    $config_file = '';
+    $possible_files = [
+        $config_dir . $base_name . '.xml',
+        $config_dir . $base_name . '.xml.dist'
+    ];
 
-	// Add specific file if provided
-	if (!empty($options['file'])) {
-		$cmd .= ' ' . $options['file'];
-	}
+    // Find the first existing config file
+    foreach ($possible_files as $file) {
+        if (file_exists($file)) {
+            $config_file = $file;
+            break;
+        }
+    }
 
-	return $cmd;
+    if (empty($config_file)) {
+        throw new \RuntimeException("Could not find PHPUnit config file. Tried:\n" .
+            "- " . implode("\n- ", $possible_files));
+    }
+
+    // Get just the filename for the config file
+    $config_filename = basename($config_file);
+
+    // Build the path that PHPUnit will use
+    $config_path = $is_lando
+        ? rtrim($wp_root, '/') . '/' . ltrim($folder_in_wordpress, '/') . '/' . $your_plugin_slug . '/tests/config/' . $config_filename
+        : $config_file; // Use full path for local
+
+
+    // Use the PHPUnit from the test framework's vendor directory
+    $phpunit_path = $is_lando
+        ? $wp_root . '/' . $folder_in_wordpress . '/' . $your_plugin_slug . '/tests/gl-phpunit-test-framework/vendor/bin/phpunit'
+        : __DIR__ . '/../tests/gl-phpunit-test-framework/vendor/bin/phpunit';
+
+    $cmd = $php_command . ' ' . escapeshellarg($phpunit_path) . ' -c ' . escapeshellarg($config_path);
+
+    // Add verbose option if requested
+    if ($options['verbose']) {
+        $cmd .= ' --verbose';
+    }
+
+    // Add test filter if provided
+    if (!empty($options['filter'])) {
+        $cmd .= ' --filter ' . escapeshellarg($options['filter']);
+    }
+
+    return $cmd;
 }
-
 // Execute tests based on the selected type
 if ($options['unit']) {
-	// Run unit tests
-	colored_message("Running unit tests...", 'blue');
-	$phpunit_cmd = build_phpunit_command('phpunit-unit.xml.dist', 'unit', $options, $your_plugin_dest);
-	colored_message("Executing: $phpunit_cmd", 'blue');
-	passthru($phpunit_cmd, $phpunit_return);
+    // Run unit tests
+    colored_message("Running unit tests...", 'blue');
+    $phpunit_cmd = build_phpunit_command('unit', $options, $test_run_path);
+    colored_message("Executing: $phpunit_cmd", 'blue');
+    passthru($phpunit_cmd, $phpunit_return);
 } elseif ($options['wp-mock']) {
 	// Run WP_Mock tests
 	colored_message("Running WP_Mock tests...", 'blue');
-	$phpunit_cmd = build_phpunit_command('phpunit-wp-mock.xml.dist', 'wp-mock', $options, $your_plugin_dest);
+	$phpunit_cmd = build_phpunit_command('wp-mock', $options, $test_run_path);
 	colored_message("Executing: $phpunit_cmd", 'blue');
 	passthru($phpunit_cmd, $phpunit_return);
 } elseif ($options['integration']) {
 	// Run integration tests
 	colored_message("Running integration tests...", 'blue');
-	$phpunit_cmd = build_phpunit_command('phpunit-integration.xml.dist', 'integration', $options, $your_plugin_dest);
+	$phpunit_cmd = build_phpunit_command('integration', $options, $test_run_path);
 	colored_message("Executing: $phpunit_cmd", 'blue');
 	passthru($phpunit_cmd, $phpunit_return);
 } elseif ($options['all']) {
@@ -272,19 +332,19 @@ if ($options['unit']) {
 
 	// Run unit tests
 	colored_message("\nRunning unit tests...", 'blue');
-	$unit_cmd = build_phpunit_command('phpunit-unit.xml.dist', 'unit', $options, $your_plugin_dest);
+	$unit_cmd = build_phpunit_command('unit', $options, $test_run_path);
 	colored_message("Executing: $unit_cmd", 'blue');
 	passthru($unit_cmd, $unit_return);
 
 	// Run WP Mock tests
 	colored_message("\nRunning WP Mock tests...", 'blue');
-	$wp_mock_cmd = build_phpunit_command('phpunit-wp-mock.xml.dist', 'wp-mock', $options, $your_plugin_dest);
+	$wp_mock_cmd = build_phpunit_command('wp-mock', $options, $test_run_path);
 	colored_message("Executing: $wp_mock_cmd", 'blue');
 	passthru($wp_mock_cmd, $wp_mock_return);
 
 	// Run integration tests
 	colored_message("\nRunning integration tests...", 'blue');
-	$integration_cmd = build_phpunit_command('phpunit-integration.xml.dist', 'integration', $options, $your_plugin_dest);
+	$integration_cmd = build_phpunit_command('integration', $options, $test_run_path);
 	colored_message("Executing: $integration_cmd", 'blue');
 	passthru($integration_cmd, $integration_return);
 

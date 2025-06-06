@@ -1,13 +1,14 @@
 <?php
 /**
- * Sync Reinvent Coaching Process to WordPress
+ * Sync This Plugin to WordPress
  *
- * This script syncs the Reinvent Coaching Process to a WordPress plugin directory
+ * This script syncs the plugin to a WordPress plugin directory
  * and sets up the testing environment.
  *
  * Usage: php bin/sync-to-wp.php
+ * also included in `php bin/sync-and-test.php`
  *
- * @package WP_PHPUnit_Framework
+ * @package Sync_To_WP
  */
 
 // phpcs:set WordPress.Security.EscapeOutput customEscapingFunctions[] esc_cli
@@ -18,7 +19,7 @@
 
 declare(strict_types=1);
 
-namespace GL_Reinvent\Bin;
+namespace Sync_To_WP;
 
 /**
  * Utility functions
@@ -234,14 +235,44 @@ function load_settings_file( string $env_file ): array {
 }
 
 
+/**
+ * Merge two composer.json configurations
+ *
+ * @param array $base Base configuration (e.g., from the test framework)
+ * @param array $additional Additional configuration (e.g., from the plugin)
+ * @return array Merged configuration
+ */
+function merge_composer_configs(array $base, array $additional): array {
+    // Merge the autoload.psr-4 configurations
+    if (isset($additional['autoload']['psr-4']) && isset($base['autoload']['psr-4'])) {
+        $base['autoload']['psr-4'] = array_merge(
+            $base['autoload']['psr-4'],
+            $additional['autoload']['psr-4']
+        );
+    }
+    
+    // Merge other configurations as needed
+    $keys_to_merge = ['require', 'require-dev', 'scripts'];
+    foreach ($keys_to_merge as $key) {
+        if (isset($additional[$key]) && is_array($additional[$key])) {
+            $base[$key] = array_merge(
+                $base[$key] ?? [],
+                $additional[$key]
+            );
+        }
+    }
+    
+    return $base;
+}
+
 // ================= MAIN SYNC LOGIC =================
 
 function main() {
     define('SCRIPT_DIR', __DIR__);
     define('PROJECT_DIR', dirname(__DIR__,1));
 
-    // Load settings from .env.testing
-    $env_file = PROJECT_DIR . '/.env.ini';
+    // Load settings from environment file
+    $env_file = get_setting('ENV_FILE', PROJECT_DIR . '/.env.ini');
     global $loaded_settings;
     $loaded_settings = load_settings_file($env_file);
 
@@ -257,7 +288,7 @@ function main() {
     }
 
     // Get plugin slug and folder path from settings
-    $your_plugin_slug = get_setting('YOUR_PLUGIN_SLUG', 'gl-phpunit-testing-framework');
+    $your_plugin_slug = get_setting('YOUR_PLUGIN_SLUG', 'my-wordpress-plugin');
     $folder_in_wordpress = get_setting('FOLDER_IN_WORDPRESS', 'wp-content/plugins');
     $your_plugin_dest = $filesystem_wp_root . '/' . $folder_in_wordpress . '/' . $your_plugin_slug;
 
@@ -267,11 +298,49 @@ function main() {
     echo esc_cli("  Plugin destination: $your_plugin_dest\n");
 
     // Ensure vendor directory exists in source
-    // This is a reason are requiring tests be in $plugin_folder/tests
-    if (!is_dir("$plugin_folder/tests/vendor")) {
-        echo esc_cli("Installing composer dependencies in source...\n");
-        chdir($plugin_folder . '/tests' );
-        exec('composer install');
+    // Set up source and destination paths
+    $source = PROJECT_DIR;
+    $destination = $your_plugin_dest;
+
+    // Create destination directory if it doesn't exist
+    if (!is_dir($destination)) {
+        mkdir($destination, 0755, true);
+    }
+    
+    // Handle Composer configuration
+    $plugin_composer = [];
+    $plugin_composer_path = $source . '/composer.json';
+    $test_framework_composer_path = $source . '/tests/gl-phpunit-test-framework/composer.json';
+    $destination_composer_path = $destination . '/composer.json';
+    
+    // Load plugin's composer.json if it exists
+    if (file_exists($plugin_composer_path)) {
+        $plugin_composer = json_decode(file_get_contents($plugin_composer_path), true);
+    }
+    
+    // Load test framework's composer.json
+    if (file_exists($test_framework_composer_path)) {
+        $test_framework_composer = json_decode(file_get_contents($test_framework_composer_path), true);
+        
+        // Merge the configurations
+        $merged_composer = merge_composer_configs($test_framework_composer, $plugin_composer);
+        
+        // Write the merged composer.json to the destination
+        file_put_contents(
+            $destination_composer_path,
+            json_encode($merged_composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+        );
+        
+        // Run composer install in the destination directory
+        if (file_exists($destination . '/vendor/autoload.php')) {
+            // Update autoloader if it already exists
+            echo esc_cli("Updating Composer autoloader...\n");
+            exec("cd {$destination} && composer dump-autoload -o");
+        } else {
+            // Install dependencies if they don't exist
+            echo esc_cli("Installing Composer dependencies...\n");
+            exec("cd {$destination} && composer install --no-dev -o");
+        }
     }
 
     // Create destination directory if it doesn't exist
@@ -313,7 +382,7 @@ function main() {
         echo esc_cli("Error syncing framework files. rsync exited with code $return_var\n");
         echo esc_cli("This might be due to permission issues or the destination directory not existing.\n");
         echo esc_cli("If using Lando, try running this command inside the Lando environment:\n");
-        echo esc_cli("  lando ssh -c 'mkdir -p $your_plugin_dest && cd /app && php /app/wp-content/plugins/gl-phpunit-testing-framework/bin/sync-to-wp.php'\n");
+        echo esc_cli("  lando ssh -c 'mkdir -p $your_plugin_dest && cd /app && php /app/wp-content/plugins/$your_plugin_slug/bin/sync-to-wp.php'\n");
         exit(1);
     }
 
@@ -342,11 +411,11 @@ function main() {
     chdir($your_plugin_dest);
 
     // Instructions for running tests
-    echo esc_cli("\nTo run integration tests:\n");
-    echo esc_cli("From your $your_plugin_dest folder, run:\n");
-    echo esc_cli("composer test:integration\n");
-    echo esc_cli("For unit tests: composer test:unit\n");
-    echo esc_cli("For WP-Mock tests: composer test:wp-mock\n\n");
+    echo esc_cli("\nTo run tests, use the appropriate Composer script from $your_plugin_dest:\n");
+    echo esc_cli("composer test:integration  # For integration tests\n");
+    echo esc_cli("composer test:unit        # For unit tests\n");
+    echo esc_cli("composer test:wp-mock     # For WP-Mock tests\n");
+    echo esc_cli("composer test             # To run all test types\n\n");
 }
 
 main();
