@@ -4,13 +4,13 @@
 
 ### Sync-Test-Commit-Document Process
 1. **Sync**: Run `bin/sync-and-test.php` to synchronize code to the WordPress environment
-2. **Test**: Execute all tests and verify PHPStan compliance
+2. **Test**: Execute all tests (my WP_PHPUnit_Framework, installed in tests/gl-phpunit-test-framework, source in ~/sites/phpunit-testing/) and verify PHPStan compliance;
 3. **Commit**: Commit code changes with a descriptive message
 4. **Document**: Update documentation if needed, then commit documentation changes separately
 
 ### Environment Management
 - Development code lives in `~/sites/reinvent/`
-- WordPress environment is in `~/sites/wordpress/`
+- WordPress environment is in Lando `~/sites/wordpress/`, this plugin copied to ~/sites/wordpress/wp-content/plugins/gl-reinvent/
 - Use `bin/sync-to-wp.php` for manual syncing
 - Environment variables are managed via `.env.testing` (copied to WordPress plugin directory)
 
@@ -25,7 +25,7 @@ Use these conventions throughout the codebase for clarity and consistency.
 
 ## Namespace & Coding Conventions
 
-- All PHP code for the plugin uses the `GL_Reinvent` namespace (PSR-4 compliant; matches `src/` directory structure).
+- All PHP code for the plugin uses the `GL_Reinvent` namespace (PSR-4 compliant with WordPress naming conventions; matches `src/` directory structure).
 - **Global Classes:** Global PHP and WordPress classes (e.g., `\Exception`, `\WP_Post`) must be referenced with a leading backslash.
 - **Namespace References:** Use the "fully qualified from current namespace" approach for clarity, e.g.:
   ```php
@@ -36,6 +36,60 @@ Use these conventions throughout the codebase for clarity and consistency.
   // Refers to Reinvent_Coaching_Process\Service\Model\Person_Profile
   ```
 - Directory structure and namespaces must match (PSR-4).
+
+## Modern PSR-4 + WordPress Standards
+
+### Directory Structure
+```
+reinvent/
+├── src/                    # All PHP classes (PSR-4 autoloaded)
+│   ├── Model/            # Domain models
+│   ├── Service/          # Business logic
+│   └── Controller/       # Request handlers
+├── tests/                # Test files (WordPress style)
+│   ├── Unit/            # Unit tests
+│   ├── Integration/      # Integration tests
+│   └── WP-Mock/         # WP-Mock tests
+├── assets/              # CSS, JS, images (kebab-case)
+├── templates/          # Template files (kebab-case)
+├── composer.json       # PSR-4 autoloading config
+└── reinvent.php        # Main plugin file (kebab-case)
+```
+
+### Naming Conventions
+
+| Type | Location | Naming Convention | Example |
+|------|----------|-------------------|---------|
+| **Class Files** | `src/` | Match class name (PascalCase) | `Journey_Questions_Model.php` |
+| **Test Files** | `tests/` | `test-{feature}.php` (kebab-case) | `test-journey-questions.php` |
+| **Main Plugin File** | Root | `plugin-name.php` (kebab-case) | `reinvent.php` |
+| **Assets** | `assets/` | kebab-case | `main.js`, `admin-styles.css` |
+| **Templates** | `templates/` | kebab-case | `single-journey.php` |
+
+### Autoloading Configuration
+```json
+{
+    "autoload": {
+        "psr-4": {
+            "GL_Reinvent\\": "src/"
+        }
+    }
+}
+```
+
+### Key Points
+1. **Class Files**:
+   - Must match class name exactly (case-sensitive)
+   - Example: `class Journey_Questions_Model` → `src/Model/Journey_Questions_Model.php`
+
+2. **Test Files**:
+   - Use `test-` prefix
+   - Describe feature being tested
+   - Example: `tests/Unit/test-journey-questions.php`
+
+3. **Non-PHP Files**:
+   - Always use kebab-case
+   - Examples: `admin-styles.css`, `main.js`, `single-journey.php`
 
 ## Data Models / Structures
 

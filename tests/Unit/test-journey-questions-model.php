@@ -2,12 +2,12 @@
 /**
  * Unit tests for Journey_Questions_Model
  *
- * @package WP_PHPUnit_Framework\Unit
+ * @package GL_Reinvent\Tests\Unit
  */
 
 declare(strict_types=1);
 
-namespace WP_PHPUnit_Framework\Unit;
+namespace GL_Reinvent\Tests\Unit;
 
 use GL_Reinvent\Model\Journey_Questions_Model;
 use Mockery;

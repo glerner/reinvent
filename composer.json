@@ -17,24 +17,16 @@
     "autoload": {
         "psr-4": {
             "GL_Reinvent\\": "src/"
-        },
-        "classmap": [
-            "src/model/",
-            "src/controller/",
-            "src/service/",
-            "src/view/",
-            "tests/gl-phpunit-test-framework/src/"
-        ],
-        "exclude-from-classmap": [
-            "tests/gl-phpunit-test-framework/src/Stubs/"
-        ]
+        }
+    },
+    "scripts": {
+        "test": "cd tests/gl-phpunit-test-framework && composer test",
+        "test:unit": "cd tests/gl-phpunit-test-framework && composer test:unit",
+        "test:integration": "cd tests/gl-phpunit-test-framework && composer test:integration",
+        "test:wp-mock": "cd tests/gl-phpunit-test-framework && composer test:wp-mock"
     },
     "config": {
         "optimize-autoloader": true,
-        "preferred-install": "dist",
-        "sort-packages": true,
-        "allow-plugins": {
-            "dealerdirect/phpcodesniffer-composer-installer": true
-        }
+        "sort-packages": true
     }
 }
