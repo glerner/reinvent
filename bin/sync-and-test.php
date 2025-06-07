@@ -28,11 +28,11 @@ declare(strict_types=1);
 namespace WP_PHPUnit_Framework\Bin;
 
 /* Define script constants as namespace constants
- * SCRIPT_DIR should be your-plugin/tests/bin
+ * SCRIPT_DIR should be your-plugin/bin
  * PROJECT_DIR should be your-plugin
 */
 define('PROJECT_DIR', dirname(__DIR__));
-define('SCRIPT_DIR', PROJECT_DIR . '/tests/bin');
+define('SCRIPT_DIR', PROJECT_DIR . '/bin');
 define('TESTS_DIR', PROJECT_DIR . '/tests');
 define('PHPUNIT_FRAMEWORK_DIR', PROJECT_DIR . '/tests/gl-phpunit-test-framework');
 
@@ -217,11 +217,11 @@ if (!is_dir($your_plugin_dest)) {
 $sync_script = SCRIPT_DIR . '/sync-to-wp.php';
 if (!file_exists($sync_script)) {
 	colored_message("Error: Could not find sync-to-wp.php script at $sync_script", 'red');
-	exit(1);
-}
+        exit(1);
+    }
 
 // Execute the sync script - always use filesystem PHP
-colored_message("Executing sync-to-wp.php...", 'blue');
+colored_message("Executing $sync_script sync-and-test line 224", 'blue');
 $sync_cmd = "php $sync_script";
 if ($options['verbose']) {
     echo esc_cli("Command: $sync_cmd\n");

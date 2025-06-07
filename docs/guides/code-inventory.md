@@ -1,6 +1,20 @@
 # Code Inventory: Reinvent Coaching Process Plugin
 
-## WordPressNaming Conventions
+## Development Workflow
+
+### Sync-Test-Commit-Document Process
+1. **Sync**: Run `bin/sync-and-test.php` to synchronize code to the WordPress environment
+2. **Test**: Execute all tests and verify PHPStan compliance
+3. **Commit**: Commit code changes with a descriptive message
+4. **Document**: Update documentation if needed, then commit documentation changes separately
+
+### Environment Management
+- Development code lives in `~/sites/reinvent/`
+- WordPress environment is in `~/sites/wordpress/`
+- Use `bin/sync-to-wp.php` for manual syncing
+- Environment variables are managed via `.env.testing` (copied to WordPress plugin directory)
+
+## WordPress Naming Conventions
 - **Files:** lowercase-with-hyphens (e.g. `wp-config.php`)
 - **Classes:** PascalCase (e.g., `Journey_Answer_Service`)
 - **Functions/Methods:** snake_case (e.g., `add_answer`)

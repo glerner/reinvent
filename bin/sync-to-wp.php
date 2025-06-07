@@ -11,15 +11,22 @@
  * @package Sync_To_WP
  */
 
+declare(strict_types=1);
+
+namespace Sync_To_WP;
+
+use stdClass;
+
 // phpcs:set WordPress.Security.EscapeOutput customEscapingFunctions[] esc_cli
 // phpcs:disable WordPress.WP.AlternativeFunctions
 // phpcs:disable WordPress.DB.RestrictedFunctions
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedNamespaceFound
 
-declare(strict_types=1);
 
-namespace Sync_To_WP;
+// Debug: Show which file is being executed
+echo "[DEBUG] Executing: " . __FILE__ . "\n";
+
 
 /**
  * Utility functions
@@ -235,35 +242,7 @@ function load_settings_file( string $env_file ): array {
 }
 
 
-/**
- * Merge two composer.json configurations
- *
- * @param array $base Base configuration (e.g., from the test framework)
- * @param array $additional Additional configuration (e.g., from the plugin)
- * @return array Merged configuration
- */
-function merge_composer_configs(array $base, array $additional): array {
-    // Merge the autoload.psr-4 configurations
-    if (isset($additional['autoload']['psr-4']) && isset($base['autoload']['psr-4'])) {
-        $base['autoload']['psr-4'] = array_merge(
-            $base['autoload']['psr-4'],
-            $additional['autoload']['psr-4']
-        );
-    }
-    
-    // Merge other configurations as needed
-    $keys_to_merge = ['require', 'require-dev', 'scripts'];
-    foreach ($keys_to_merge as $key) {
-        if (isset($additional[$key]) && is_array($additional[$key])) {
-            $base[$key] = array_merge(
-                $base[$key] ?? [],
-                $additional[$key]
-            );
-        }
-    }
-    
-    return $base;
-}
+// No composer.json merging needed - using the one from the source directory
 
 // ================= MAIN SYNC LOGIC =================
 
@@ -306,40 +285,21 @@ function main() {
     if (!is_dir($destination)) {
         mkdir($destination, 0755, true);
     }
-    
-    // Handle Composer configuration
-    $plugin_composer = [];
-    $plugin_composer_path = $source . '/composer.json';
-    $test_framework_composer_path = $source . '/tests/gl-phpunit-test-framework/composer.json';
-    $destination_composer_path = $destination . '/composer.json';
-    
-    // Load plugin's composer.json if it exists
-    if (file_exists($plugin_composer_path)) {
-        $plugin_composer = json_decode(file_get_contents($plugin_composer_path), true);
-    }
-    
-    // Load test framework's composer.json
-    if (file_exists($test_framework_composer_path)) {
-        $test_framework_composer = json_decode(file_get_contents($test_framework_composer_path), true);
-        
-        // Merge the configurations
-        $merged_composer = merge_composer_configs($test_framework_composer, $plugin_composer);
-        
-        // Write the merged composer.json to the destination
-        file_put_contents(
-            $destination_composer_path,
-            json_encode($merged_composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
-        );
-        
-        // Run composer install in the destination directory
-        if (file_exists($destination . '/vendor/autoload.php')) {
-            // Update autoloader if it already exists
-            echo esc_cli("Updating Composer autoloader...\n");
-            exec("cd {$destination} && composer dump-autoload -o");
+
+    // Debug: Show current working directory and paths
+    echo "Current working directory: " . getcwd() . "\n";
+    echo "Source directory: $source\n";
+    echo "Destination directory: $destination\n";
+
+    // Copy composer.json to destination
+    $composer_src = $source . '/composer.json';
+    $composer_dest = $destination . '/composer.json';
+
+    if (file_exists($composer_src)) {
+        if (!copy($composer_src, $composer_dest)) {
+            echo "Warning: Could not copy composer.json to $composer_dest\n";
         } else {
-            // Install dependencies if they don't exist
-            echo esc_cli("Installing Composer dependencies...\n");
-            exec("cd {$destination} && composer install --no-dev -o");
+            echo "Copied composer.json to $composer_dest\n";
         }
     }
 
@@ -397,10 +357,13 @@ function main() {
     }
 
     // Run composer dump-autoload in the destination directory
-    // composer.json for testing programs is in tests/composer.json
-    chdir($your_plugin_dest . '/tests' );
-    echo esc_cli("Regenerating autoloader files...\n");
-    exec('composer dump-autoload');
+    if (file_exists($your_plugin_dest . '/composer.json')) {
+        $cwd = getcwd();
+        chdir($your_plugin_dest);
+        echo esc_cli("Regenerating autoloader files...\n");
+        exec('composer dump-autoload');
+        chdir($cwd);
+    }
 
     // Note: For setting up the WordPress test environment, use the setup-plugin-tests.php script
     // Example: php bin/setup-plugin-tests.php

@@ -1,5 +1,5 @@
 <?php
-namespace Reinvent_Coaching_Process\Service;
+namespace GL_Reinvent\Service;
 
 use Model\User_Profile;
 use Model\Reinvent_Journey;

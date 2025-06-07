@@ -1,5 +1,7 @@
 # Reinvent Coaching Process – WordPress Plugin
 
+by George Lerner, GitHub https://github.com/glerner/
+
 A professional WordPress plugin for guiding users through the Reinvent Coaching Process, inspired by the Hero's Journey and Super Self frameworks. The plugin presents a series of reflective questions, explanations, and input fields to help users document, edit, and analyze their personal reinvention journeys.
 
 The app will ask the user about themselves:
