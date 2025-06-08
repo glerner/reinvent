@@ -66,16 +66,9 @@ reinvent/
 | **Assets** | `assets/` | kebab-case | `main.js`, `admin-styles.css` |
 | **Templates** | `templates/` | kebab-case | `single-journey.php` |
 
-### Autoloading Configuration
-```json
-{
-    "autoload": {
-        "psr-4": {
-            "GL_Reinvent\\": "src/"
-        }
-    }
-}
-```
+### Autoloading
+- Main: `"GL_Reinvent\\": "src/"`
+- Tests: `"GL_Reinvent\\Tests\\": "tests/"`
 
 ### Key Points
 1. **Class Files**:
@@ -649,7 +642,18 @@ See the [GL PHPUnit Testing Framework documentation](tests/gl-phpunit-test-frame
 - Test class and method patterns
 - Setup and execution instructions
 
-Test Files:
+### Test Structure
+- **Namespace**: `GL_Reinvent\Tests\`
+  - Unit tests: `GL_Reinvent\Tests\Unit\`
+  - Integration tests: `GL_Reinvent\Tests\Integration\`
+  - WP_Mock tests: `GL_Reinvent\Tests\WP_Mock\`
+
+### Test Class Naming
+- Test classes must be prefixed with `Test_`
+- Test files must be in the appropriate test type directory
+- Test methods should be descriptive and use snake_case
+
+### Test Files:
 
 - Unit Tests: `tests/unit`
 - WP Mock Tests: `tests/wp-mock`

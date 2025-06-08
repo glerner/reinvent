@@ -32,9 +32,19 @@ namespace WP_PHPUnit_Framework\Bin;
  * PROJECT_DIR should be your-plugin
 */
 define('PROJECT_DIR', dirname(__DIR__));
-define('SCRIPT_DIR', PROJECT_DIR . '/bin');
-define('TESTS_DIR', PROJECT_DIR . '/tests');
-define('PHPUNIT_FRAMEWORK_DIR', PROJECT_DIR . '/tests/gl-phpunit-test-framework');
+define('SCRIPT_DIR', PROJECT_DIR . DIRECTORY_SEPARATOR . 'bin');
+define('TESTS_DIR', PROJECT_DIR . DIRECTORY_SEPARATOR . 'tests');
+
+// Load test framework directory from .env or use default
+$test_framework_dir = get_setting('TEST_FRAMEWORK_DIR', 'gl-phpunit-test-framework');
+define('PHPUNIT_FRAMEWORK_DIR', TESTS_DIR . DIRECTORY_SEPARATOR . $test_framework_dir);
+
+// Verify test framework directory exists
+if (!is_dir(PHPUNIT_FRAMEWORK_DIR)) {
+    colored_message("Error: Test framework directory not found: " . PHPUNIT_FRAMEWORK_DIR, 'red');
+    colored_message("Please check your TEST_FRAMEWORK_DIR setting in .env.testing", 'yellow');
+    exit(1);
+}
 
 // Include the framework utility functions
 require_once PHPUNIT_FRAMEWORK_DIR . '/bin/framework-functions.php';
@@ -47,6 +57,12 @@ use function WP_PHPUnit_Framework\is_lando_environment;
 
 // Set default timezone to avoid warnings
 date_default_timezone_set('UTC');
+
+// Check if Composer autoloader exists
+if (!file_exists(PROJECT_DIR . '/vendor/autoload.php')) {
+    colored_message("\n⚠️  Composer dependencies not found. Please run 'composer install' or 'composer update' in the project root.\n", 'yellow');
+    exit(1);
+}
 
 /**
  * Print a colored message to the console
@@ -76,24 +92,38 @@ function colored_message(string $message, string $color = 'normal'): void {
  * @return void
  */
 function print_usage(): void {
-	colored_message("Usage:", 'blue');
-	echo esc_cli("  php bin/sync-and-test.php [options] [--file=<file>]\n\n");
+    $script = basename(__FILE__);
+    
+    colored_message("Usage:", 'blue');
+    echo esc_cli("  php $script [options] [--file=<file>]\n\n");
 
-	colored_message("Options:", 'blue');
-	echo esc_cli("  --help          Show this help message\n");
-	echo esc_cli("  --unit          Run unit tests (tests that don't require WordPress functions)\n");
-	echo esc_cli("  --wp-mock       Run WP Mock tests (tests that mock WordPress functions)\n");
-	echo esc_cli("  --integration   Run integration tests (tests that require a WordPress database)\n");
-	echo esc_cli("  --all           Run all test types\n");
-	echo esc_cli("  --coverage      Generate code coverage report in build/coverage directory\n");
-	echo esc_cli("  --verbose       Show verbose output\n");
-	echo esc_cli("  --file=<file>   Run a specific test file instead of the entire test suite\n\n");
+    colored_message("Test Types:", 'blue');
+    echo esc_cli(sprintf("  %-12s %s\n", "--unit", "Run fast unit tests (no WordPress)"));
+    echo esc_cli(sprintf("  %-12s %s\n", "--wp-mock", "Run WP Mock tests (mocked WordPress)"));
+    echo esc_cli(sprintf("  %-12s %s\n", "--integration", "Run integration tests (full WordPress)"));
+    echo esc_cli(sprintf("  %-12s %s\n\n", "--all", "Run all test types"));
 
-	colored_message("Examples:", 'blue');
-	echo esc_cli("  php bin/sync-and-test.php --unit\n");
-	echo esc_cli("  php bin/sync-and-test.php --wp-mock --file=tests/wp-mock/specific-test.php\n");
-	echo esc_cli("  php bin/sync-and-test.php --integration --coverage\n");
-	echo esc_cli("  php bin/sync-and-test.php --all --verbose\n");
+    colored_message("Options:", 'blue');
+    echo esc_cli(sprintf("  %-20s %s\n", "--file=<file>", "Run a specific test file"));
+    echo esc_cli(sprintf("  %-20s %s\n", "--coverage", "Generate HTML coverage report"));
+    echo esc_cli(sprintf("  %-20s %s\n", "--verbose", "Show detailed output"));
+    echo esc_cli(sprintf("  %-20s %s\n\n", "--help", "Show this help"));
+
+    colored_message("Environment Variables:", 'blue');
+    echo esc_cli(sprintf("  %-25s %s\n", "WP_TESTS_DIR", "Path to WordPress test library"));
+    echo esc_cli(sprintf("  %-25s %s\n", "WP_ROOT", "Path to WordPress root (with wp-content/)"));
+    echo esc_cli(sprintf("  %-25s %s\n", "TEST_FRAMEWORK_DIR", "Test framework directory"));
+    echo esc_cli(sprintf("  %-25s %s\n\n", "  (default: gl-phpunit-test-framework)", ""));
+
+    colored_message("Examples:", 'blue');
+    echo esc_cli("  # Run all tests with coverage\n");
+    echo esc_cli("  php $script --all --coverage\n\n");
+    
+    echo esc_cli("  # Run a specific test file\n");
+    echo esc_cli("  php $script --file=tests/Unit/ExampleTest.php\n\n");
+    
+    echo esc_cli("  # Run with verbose output\n");
+    echo esc_cli("  php $script --unit --verbose\n");
 }
 
 // Parse command line arguments
@@ -135,18 +165,20 @@ if ($options['help'] || (!$options['unit'] && !$options['wp-mock'] && !$options[
 }
 
 // Load settings from .env.testing
-
 $env_file = PROJECT_DIR . '/tests/.env.testing';
-colored_message("Loading settings from $env_file", 'blue');
+if ($options['verbose']) {
+    colored_message("Loading settings from $env_file", 'blue');
+}
 global $loaded_settings;
 $loaded_settings = load_settings_file($env_file);
 
 // Define paths from settings
 
-// Get paths from settings
+// Get and validate required settings
 $filesystem_wp_root = get_setting('FILESYSTEM_WP_ROOT');
 if (empty($filesystem_wp_root)) {
     colored_message("Error: FILESYSTEM_WP_ROOT setting is not set.", 'red');
+    colored_message("This should point to your local WordPress installation directory (the one with wp-content/)", 'yellow');
     colored_message("Please set this in your .env.testing file or environment.", 'red');
     exit(1);
 }
@@ -155,12 +187,24 @@ if (empty($filesystem_wp_root)) {
 $wp_root = get_setting('WP_ROOT');
 if (empty($wp_root)) {
     colored_message("Error: WP_ROOT setting is not set.", 'red');
+    colored_message("This should be the path WordPress uses to access itself (often same as FILESYSTEM_WP_ROOT)", 'yellow');
     colored_message("Please set this in your .env.testing file or environment.", 'red');
     exit(1);
 }
 
+// Get optional settings with defaults
 $your_plugin_slug = \WP_PHPUnit_Framework\get_setting('YOUR_PLUGIN_SLUG', 'gl-phpunit-testing-framework');
 $folder_in_wordpress = \WP_PHPUnit_Framework\get_setting('FOLDER_IN_WORDPRESS', 'wp-content/plugins');
+
+if ($options['verbose']) {
+    colored_message("\nEnvironment Settings:", 'blue');
+    echo esc_cli(sprintf("  %-25s %s\n", "FILESYSTEM_WP_ROOT:", $filesystem_wp_root));
+    echo esc_cli(sprintf("  %-25s %s\n", "WP_ROOT:", $wp_root));
+    echo esc_cli(sprintf("  %-25s %s\n", "YOUR_PLUGIN_SLUG:", $your_plugin_slug));
+    echo esc_cli(sprintf("  %-25s %s\n", "FOLDER_IN_WORDPRESS:", $folder_in_wordpress));
+    echo esc_cli(sprintf("  %-25s %s\n", "TEST_FRAMEWORK_DIR:", $test_framework_dir));
+    echo "\n";
+}
 
 // Set up paths with proper path concatenation
 $your_plugin_dest = rtrim($filesystem_wp_root, '/') . '/' . ltrim($folder_in_wordpress, '/') . '/' . $your_plugin_slug;
@@ -187,30 +231,31 @@ require_once __DIR__ . '/copy-wp-phpunit-test-framework-convenient-files.php';
 // Step 1: Sync plugin to WordPress
 colored_message("\nStep 1: Syncing project to WordPress...", 'green');
 
-// Ensure vendor directory exists in source
-if (!is_dir(PROJECT_DIR . '/tests/vendor')) {
-    colored_message("Installing composer dependencies in source...", 'yellow');
-    $tests_dir = PROJECT_DIR . '/tests';
-    chdir($tests_dir);
-    $composer_cmd = $is_lando ? 'lando composer install' : 'composer install';
-    $output = [];
-    $return_var = 0;
-    exec($composer_cmd . ' 2>&1', $output, $return_var);
-
-    if ($return_var !== 0) {
-        colored_message("Error running composer install:", 'red');
-        echo esc_cli(implode("\n", $output) . "\n");
-        exit(1);
-    }
-}
+// All dependencies are now managed by the main project's composer.json
+colored_message("Using main project's Composer dependencies...", 'blue');
 
 // Create destination directory if it doesn't exist
 if (!is_dir($your_plugin_dest)) {
-	@mkdir($your_plugin_dest, 0755, true);
-	if (!is_dir($your_plugin_dest)) {
-		colored_message("Warning: Could not create destination directory. This might be a permissions issue.", 'yellow');
-		colored_message("If using Lando, you may need to run this command within the Lando environment.", 'yellow');
-	}
+    if ($options['verbose']) {
+        colored_message("Creating destination directory: $your_plugin_dest", 'blue');
+    }
+    
+    @mkdir($your_plugin_dest, 0755, true);
+    if (!is_dir($your_plugin_dest)) {
+        $error = error_get_last();
+        $error_msg = $error ? $error['message'] : 'Unknown error';
+        
+        colored_message("Error: Could not create destination directory: $your_plugin_dest", 'red');
+        colored_message("Error details: $error_msg", 'yellow');
+        colored_message("This might be a permissions issue. Try running:", 'yellow');
+        colored_message("  mkdir -p " . escapeshellarg(dirname($your_plugin_dest)), 'cyan');
+        colored_message("  chmod 755 " . escapeshellarg(dirname($your_plugin_dest)), 'cyan');
+        exit(1);
+    } elseif ($options['verbose']) {
+        colored_message("Created directory: $your_plugin_dest", 'green');
+    }
+} elseif ($options['verbose']) {
+    colored_message("Destination directory exists: $your_plugin_dest", 'blue');
 }
 
 // Call the existing sync-to-wp.php script
@@ -221,25 +266,57 @@ if (!file_exists($sync_script)) {
     }
 
 // Execute the sync script - always use filesystem PHP
-colored_message("Executing $sync_script sync-and-test line 224", 'blue');
-$sync_cmd = "php $sync_script";
+colored_message("Executing $sync_script", 'blue');
+$sync_cmd = "php " . escapeshellarg($sync_script);
 if ($options['verbose']) {
     echo esc_cli("Command: $sync_cmd\n");
 }
-passthru($sync_cmd, $sync_return);
+
+$output = [];
+$sync_return = 0;
+exec($sync_cmd . ' 2>&1', $output, $sync_return);
+
+// Output the command output
+if (!empty($output)) {
+    echo esc_cli(implode("\n", $output)) . "\n";
+}
 
 if ($sync_return !== 0) {
-	colored_message("Error: sync-to-wp.php failed with exit code $sync_return", 'red');
-	exit($sync_return);
+    $error_msg = "Error: sync-to-wp.php failed with exit code $sync_return";
+    if (!empty($output)) {
+        $error_msg .= ":\n" . implode("\n", array_slice($output, -5)); // Show last 5 lines of output
+    }
+    colored_message($error_msg, 'red');
+    exit($sync_return);
 }
 
 // Step 2: Change to the WordPress plugin, tests directory
+$tests_dir = $your_plugin_dest . DIRECTORY_SEPARATOR . 'tests';
 colored_message("\nStep 2: Changing to WordPress plugin Tests directory...", 'green');
-if (!chdir($your_plugin_dest . '/tests')) {
-	colored_message("Error: Could not change to WordPress plugin Tests directory: $your_plugin_dest/tests", 'red');
-	exit(1);
+
+if ($options['verbose']) {
+    colored_message("Attempting to change to directory: $tests_dir", 'blue');
 }
-colored_message("Current directory: " . getcwd(), 'blue');
+
+if (!chdir($tests_dir)) {
+    $error = error_get_last();
+    $error_msg = $error ? $error['message'] : 'Unknown error';
+    
+    colored_message("Error: Could not change to WordPress plugin Tests directory: $tests_dir", 'red');
+    colored_message("Error details: $error_msg", 'yellow');
+    
+    if (!is_dir($tests_dir)) {
+        colored_message("The tests directory does not exist. Make sure sync-to-wp.php ran successfully.", 'yellow');
+    } else {
+        colored_message("Check directory permissions and try again.", 'yellow');
+    }
+    
+    exit(1);
+}
+
+if ($options['verbose']) {
+    colored_message("Successfully changed to directory: " . getcwd(), 'green');
+}
 
 // Step 3: Run the tests
 colored_message("\nStep 3: Running tests...", 'green');
@@ -290,9 +367,22 @@ function build_phpunit_command($test_type, $options, $test_run_path) {
 
 
     // Use the PHPUnit from the test framework's vendor directory
+    $test_framework_dir = get_setting('TEST_FRAMEWORK_DIR', 'gl-phpunit-test-framework');
     $phpunit_path = $is_lando
-        ? $wp_root . '/' . $folder_in_wordpress . '/' . $your_plugin_slug . '/tests/gl-phpunit-test-framework/vendor/bin/phpunit'
-        : __DIR__ . '/../tests/gl-phpunit-test-framework/vendor/bin/phpunit';
+        ? $wp_root . DIRECTORY_SEPARATOR . $folder_in_wordpress . DIRECTORY_SEPARATOR . $your_plugin_slug . 
+          DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . $test_framework_dir . 
+          DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpunit'
+        : __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 
+          $test_framework_dir . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpunit';
+
+    if (!file_exists($phpunit_path)) {
+        throw new \RuntimeException(
+            "PHPUnit binary not found at: $phpunit_path\n" .
+            "Please follow the installation instructions in the test framework's documentation:\n" .
+            "tests" . DIRECTORY_SEPARATOR . "$test_framework_dir" . DIRECTORY_SEPARATOR . "docs" . 
+            DIRECTORY_SEPARATOR . "guides" . DIRECTORY_SEPARATOR . "installation-guide.md"
+        );
+    }
 
     $cmd = $php_command . ' ' . escapeshellarg($phpunit_path) . ' -c ' . escapeshellarg($config_path);
 

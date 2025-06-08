@@ -19,6 +19,11 @@
             "GL_Reinvent\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "GL_Reinvent\\Tests\\": "tests/"
+        }
+    },
     "scripts": {
         "test": "cd tests/gl-phpunit-test-framework && composer test",
         "test:unit": "cd tests/gl-phpunit-test-framework && composer test:unit",

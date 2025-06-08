@@ -32,7 +32,7 @@ $files_to_copy = [
     'bin/sync-to-wp.php' => 'bin/sync-to-wp.php.dist',
 
     // Other framework files that might be needed
-    '.env.sample.testing' => '.env.testing',
+    '.env.sample.testing' => '.env.sample.testing',
 ];
 
 // Create target directories if they don't exist
