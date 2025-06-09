@@ -17,6 +17,10 @@
 /tests/bin/
 /tests/.env*
 
+# My dirty shortcut for updating the testing framework to this plugin
+# as I develop both
+update-phpunit-framework.sh
+
 # Ignore everything in the framework except specific files
 /tests/gl-phpunit-test-framework/**/*
 !/tests/gl-phpunit-test-framework/.gitmodules

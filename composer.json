@@ -17,12 +17,18 @@
     "autoload": {
         "psr-4": {
             "GL_Reinvent\\": "src/"
-        }
+        },
+        "exclude-from-classmap": [
+            "**/gl-phpunit-test-framework/**"
+        ]
     },
     "autoload-dev": {
-        "psr-4": {
-            "GL_Reinvent\\Tests\\": "tests/"
-        }
+        "classmap": [
+            "tests/"
+        ],
+        "exclude-from-classmap": [
+            "**/gl-phpunit-test-framework/**"
+        ]
     },
     "scripts": {
         "test": "cd tests/gl-phpunit-test-framework && composer test",
