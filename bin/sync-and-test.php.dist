@@ -258,7 +258,7 @@ if ($targeting_lando) {
 
 // Step 0: Update framework files if needed
 colored_message("Updating WP PHPUnit Test Framework files...", 'blue');
-require_once __DIR__ . '/copy-wp-phpunit-test-framework-convenient-files.php';
+require_once __DIR__ . '/copy-sync-and-bootstrap-files.php';
 
 // Step 1: Sync plugin to WordPress
 colored_message("\nStep 1: Syncing project to WordPress...", 'green');
@@ -367,7 +367,7 @@ function build_phpunit_command($test_type, $options, $test_run_path) {
     // Determine the PHP command
     $php_command = $is_lando ? 'lando php' : 'php';
     $base_name = 'phpunit-' . $test_type;
-    $config_dir = $your_plugin_dest . '/tests/config/';
+    $config_dir = $your_plugin_dest . '/tests/bootstrap/';
 
     // Look for config file in the filesystem
     $config_file = '';
@@ -394,7 +394,7 @@ function build_phpunit_command($test_type, $options, $test_run_path) {
 
     // Build the path that PHPUnit will use
     $config_path = $is_lando
-        ? rtrim($wp_root, '/') . '/' . ltrim($folder_in_wordpress, '/') . '/' . $your_plugin_slug . '/tests/config/' . $config_filename
+        ? rtrim($wp_root, '/') . '/' . ltrim($folder_in_wordpress, '/') . '/' . $your_plugin_slug . '/tests/bootstrap/' . $config_filename
         : $config_file; // Use full path for local
 
 

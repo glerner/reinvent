@@ -31,9 +31,10 @@ $files_to_copy = [
     'tests/bootstrap/phpunit-multisite.xml.dist' => 'tests/bootstrap/phpunit-multisite.xml.dist',
     'tests/bootstrap/phpunit-framework-tests.xml.dist' => 'tests/bootstrap/phpunit-framework-tests.xml.dist',
 
-    // Bin files go to bin/ with .dist extension
+    // Bin files
     'bin/sync-and-test.php' => 'bin/sync-and-test.php.dist',
     'bin/sync-to-wp.php' => 'bin/sync-to-wp.php.dist',
+    'bin/copy-sync-and-bootstrap-files.php' => 'bin/copy-sync-and-bootstrap-files.php.copy',
 
     // Other framework files
     '.env.sample.testing' => 'tests/.env.sample.testing',

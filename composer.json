@@ -4,40 +4,48 @@
     "version": "1.0.0",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
+    "minimum-stability": "stable",
     "authors": [
         {
             "name": "George Lerner",
             "email": "github@glerner.com"
         }
     ],
-    "minimum-stability": "stable",
     "require": {
         "php": ">=8.0"
+    },
+    "require-dev": {
+        "mockery/mockery": "^1.4",
+        "phpunit/phpunit": "^11.0",
+        "yoast/phpunit-polyfills": "^3.0"
     },
     "autoload": {
         "psr-4": {
             "GL_Reinvent\\": "src/"
         },
         "exclude-from-classmap": [
-            "**/gl-phpunit-test-framework/**"
+            "tests/gl-phpunit-test-framework/vendor/"
         ]
     },
     "autoload-dev": {
+        "psr-4": {
+            "WP_PHPUnit_Framework\\": "tests/gl-phpunit-test-framework/src/"
+        },
+        "exclude-from-classmap": [
+            "tests/gl-phpunit-test-framework/vendor/"
+        ],
         "classmap": [
             "tests/"
-        ],
-        "exclude-from-classmap": [
-            "**/gl-phpunit-test-framework/**"
         ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
     },
     "scripts": {
         "test": "cd tests/gl-phpunit-test-framework && composer test",
         "test:unit": "cd tests/gl-phpunit-test-framework && composer test:unit",
         "test:integration": "cd tests/gl-phpunit-test-framework && composer test:integration",
         "test:wp-mock": "cd tests/gl-phpunit-test-framework && composer test:wp-mock"
-    },
-    "config": {
-        "optimize-autoloader": true,
-        "sort-packages": true
     }
 }

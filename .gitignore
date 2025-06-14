@@ -19,7 +19,7 @@
 
 # My dirty shortcut for updating the testing framework to this plugin
 # as I develop both
-update-phpunit-framework.sh
+bin/update-framework.php
 
 # Ignore everything in the framework except specific files
 /tests/gl-phpunit-test-framework/**/*
